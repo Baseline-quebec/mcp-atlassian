@@ -729,6 +729,112 @@ async def test_update_page_include_content(client, mock_confluence_fetcher):
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("width", ["full-width", "max", "default"])
+async def test_create_page_with_page_width(client, mock_confluence_fetcher, width):
+    """Test that page_width is forwarded to the underlying create_page call."""
+    await client.call_tool(
+        "confluence_create_page",
+        {
+            "space_key": "TEST",
+            "title": "Test Page",
+            "content": "Test content",
+            "page_width": width,
+        },
+    )
+
+    mock_confluence_fetcher.create_page.assert_called_once()
+    call_kwargs = mock_confluence_fetcher.create_page.call_args.kwargs
+    assert call_kwargs["page_width"] == width
+
+
+@pytest.mark.anyio
+async def test_create_page_without_page_width(client, mock_confluence_fetcher):
+    """Test that page_width defaults to None when not provided."""
+    await client.call_tool(
+        "confluence_create_page",
+        {
+            "space_key": "TEST",
+            "title": "Test Page",
+            "content": "Test content",
+        },
+    )
+
+    mock_confluence_fetcher.create_page.assert_called_once()
+    call_kwargs = mock_confluence_fetcher.create_page.call_args.kwargs
+    assert call_kwargs["page_width"] is None
+
+
+@pytest.mark.anyio
+async def test_create_page_invalid_page_width_raises(client, mock_confluence_fetcher):
+    """Test that an invalid page_width value raises a ToolError."""
+    with pytest.raises(Exception, match="Invalid page_width"):
+        await client.call_tool(
+            "confluence_create_page",
+            {
+                "space_key": "TEST",
+                "title": "Test Page",
+                "content": "Test content",
+                "page_width": "wide",
+            },
+        )
+
+    mock_confluence_fetcher.create_page.assert_not_called()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("width", ["full-width", "max", "default"])
+async def test_update_page_with_page_width(client, mock_confluence_fetcher, width):
+    """Test that page_width is forwarded to the underlying update_page call."""
+    await client.call_tool(
+        "confluence_update_page",
+        {
+            "page_id": "999999",
+            "title": "Updated Page",
+            "content": "Updated content",
+            "page_width": width,
+        },
+    )
+
+    mock_confluence_fetcher.update_page.assert_called_once()
+    call_kwargs = mock_confluence_fetcher.update_page.call_args.kwargs
+    assert call_kwargs["page_width"] == width
+
+
+@pytest.mark.anyio
+async def test_update_page_without_page_width(client, mock_confluence_fetcher):
+    """Test that page_width defaults to None when not provided (preserves current width)."""
+    await client.call_tool(
+        "confluence_update_page",
+        {
+            "page_id": "999999",
+            "title": "Updated Page",
+            "content": "Updated content",
+        },
+    )
+
+    mock_confluence_fetcher.update_page.assert_called_once()
+    call_kwargs = mock_confluence_fetcher.update_page.call_args.kwargs
+    assert call_kwargs["page_width"] is None
+
+
+@pytest.mark.anyio
+async def test_update_page_invalid_page_width_raises(client, mock_confluence_fetcher):
+    """Test that an invalid page_width value raises a ToolError."""
+    with pytest.raises(Exception, match="Invalid page_width"):
+        await client.call_tool(
+            "confluence_update_page",
+            {
+                "page_id": "999999",
+                "title": "Updated Page",
+                "content": "Updated content",
+                "page_width": "fixed-width",
+            },
+        )
+
+    mock_confluence_fetcher.update_page.assert_not_called()
+
+
+@pytest.mark.anyio
 async def test_get_page_with_numeric_id(client, mock_confluence_fetcher):
     """Test get_page with numeric page_id (integer) - should convert to string."""
     response = await client.call_tool("confluence_get_page", {"page_id": 123456})

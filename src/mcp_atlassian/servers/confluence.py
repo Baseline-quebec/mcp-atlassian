@@ -571,6 +571,13 @@ async def create_page(
             default=None,
         ),
     ] = None,
+    page_width: Annotated[
+        str | None,
+        Field(
+            description="(Optional) Page layout width. One of 'full-width', 'max', or 'default'. When null/None, the Confluence space default is used.",
+            default=None,
+        ),
+    ] = None,
 ) -> str:
     """Create a new Confluence page.
 
@@ -584,12 +591,13 @@ async def create_page(
         enable_heading_anchors: Whether to enable heading anchors (markdown only).
         include_content: Whether to include page content in the response.
         emoji: Optional page title emoji (icon shown in navigation).
+        page_width: Optional page layout width ('full-width', 'max', or 'default').
 
     Returns:
         JSON string representing the created page object.
 
     Raises:
-        ValueError: If in read-only mode, Confluence client is unavailable, or invalid content_format.
+        ValueError: If in read-only mode, Confluence client is unavailable, or invalid content_format/page_width.
     """
     confluence_fetcher = await get_confluence_fetcher(ctx)
 
@@ -597,6 +605,12 @@ async def create_page(
     if content_format not in ["markdown", "wiki", "storage"]:
         raise ValueError(
             f"Invalid content_format: {content_format}. Must be 'markdown', 'wiki', or 'storage'"
+        )
+
+    # Validate page_width
+    if page_width is not None and page_width not in ["full-width", "max", "default"]:
+        raise ValueError(
+            f"Invalid page_width: {page_width}. Must be 'full-width', 'max', or 'default'"
         )
 
     # Determine parameters based on content format
@@ -618,6 +632,7 @@ async def create_page(
         else False,
         content_representation=content_representation,
         emoji=emoji,
+        page_width=page_width,
     )
     result = page.to_simplified_dict()
     if not include_content:
@@ -683,6 +698,13 @@ async def update_page(
             default=None,
         ),
     ] = None,
+    page_width: Annotated[
+        str | None,
+        Field(
+            description="(Optional) Page layout width. One of 'full-width', 'max', or 'default'. When null/None, the current width is preserved.",
+            default=None,
+        ),
+    ] = None,
 ) -> str:
     """Update an existing Confluence page.
 
@@ -698,12 +720,13 @@ async def update_page(
         enable_heading_anchors: Whether to enable heading anchors (markdown only).
         include_content: Whether to include page content in the response.
         emoji: Optional page title emoji (icon shown in navigation).
+        page_width: Optional page layout width ('full-width', 'max', or 'default').
 
     Returns:
         JSON string representing the updated page object.
 
     Raises:
-        ValueError: If Confluence client is not configured, available, or invalid content_format.
+        ValueError: If Confluence client is not configured, available, or invalid content_format/page_width.
     """
     confluence_fetcher = await get_confluence_fetcher(ctx)
 
@@ -711,6 +734,12 @@ async def update_page(
     if content_format not in ["markdown", "wiki", "storage"]:
         raise ValueError(
             f"Invalid content_format: {content_format}. Must be 'markdown', 'wiki', or 'storage'"
+        )
+
+    # Validate page_width
+    if page_width is not None and page_width not in ["full-width", "max", "default"]:
+        raise ValueError(
+            f"Invalid page_width: {page_width}. Must be 'full-width', 'max', or 'default'"
         )
 
     # Determine parameters based on content format
@@ -734,6 +763,7 @@ async def update_page(
         else False,
         content_representation=content_representation,
         emoji=emoji,
+        page_width=page_width,
     )
     page_data = updated_page.to_simplified_dict()
     if not include_content:
