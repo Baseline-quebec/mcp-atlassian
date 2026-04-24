@@ -5,6 +5,11 @@ import sys
 import threading
 from importlib.metadata import PackageNotFoundError, version
 
+import anyio
+
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup  # noqa: F401
+
 from dotenv import dotenv_values, load_dotenv
 
 # Inject truststore BEFORE any requests/urllib3 imports to ensure the
@@ -106,12 +111,27 @@ async def _run_stdio_with_stdin_guard(run_kwargs: dict[str, object]) -> None:
 
     if server_task.done():
         server_result = await asyncio.gather(server_task, return_exceptions=True)
-        if (
-            server_result
-            and isinstance(server_result[0], Exception)
-            and not isinstance(server_result[0], asyncio.CancelledError)
-        ):
-            raise server_result[0]
+        exc = server_result[0] if server_result else None
+        if _is_benign_stdio_exit(exc):
+            return
+        if isinstance(exc, Exception) and not isinstance(exc, asyncio.CancelledError):
+            raise exc
+
+
+def _is_benign_stdio_exit(exc: object) -> bool:
+    """True if exc represents a normal stdin-close shutdown (ClosedResourceError).
+
+    fastmcp 3.x raises anyio.ClosedResourceError (often wrapped in ExceptionGroup)
+    when the stdin stream closes, which is the expected way a stdio MCP server
+    terminates. Treat these as clean exits.
+    """
+    if exc is None:
+        return False
+    if isinstance(exc, anyio.ClosedResourceError):
+        return True
+    if isinstance(exc, BaseExceptionGroup):
+        return all(_is_benign_stdio_exit(sub) for sub in exc.exceptions)
+    return False
 
 
 @click.version_option(__version__, prog_name="mcp-atlassian")
